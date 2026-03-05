@@ -20,22 +20,29 @@
             width: 100%;
             height: 100%;
             background-color: #f4f6f9;
+            overflow: hidden; /* Prevent scrolling to keep it app-like */
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* NEW: Wrapper to handle automatic proportional scaling */
+        #scale-wrapper {
+            width: 100vw;
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            overflow: hidden;
         }
 
+        /* FIXED: Fixed logical resolution. It will be scaled via JS */
         #app-container {
             position: relative;
-            width: 100%;
-            max-width: 1280px;
-            aspect-ratio: 16 / 9;
+            width: 1280px; 
+            height: 720px;
             background-color: var(--bg-color);
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
             border-radius: 12px;
             overflow: hidden;
+            transform-origin: center center;
         }
 
         /* Status Bar Overlay */
@@ -73,6 +80,7 @@
             font-size: 1.1rem;
             font-weight: 700;
             color: var(--text-color);
+            white-space: nowrap;
         }
 
         #temp-display {
@@ -92,7 +100,7 @@
         /* Description Area */
         #desc-container {
             position: absolute;
-            bottom: 40px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(248, 249, 250, 0.95);
@@ -107,7 +115,7 @@
             z-index: 10;
         }
 
-        /* Legend positioned at Top-Left to prevent overlapping with flying primers */
+        /* Legend positioned at Top-Left */
         #legend {
             position: absolute;
             top: 20px;
@@ -165,6 +173,7 @@
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(0, 86, 179, 0.3);
             transition: all 0.2s ease;
+            white-space: nowrap;
         }
 
         #next-btn:hover:not(:disabled) {
@@ -188,51 +197,55 @@
 </head>
 <body>
 
-<div id="app-container">
-    <!-- Status Bar -->
-    <div id="status-bar">
-        <div class="status-group">
-            <span class="status-label">Current Phase</span>
-            <span id="phase-text">Loading...</span>
+<!-- New wrapper for global scaling -->
+<div id="scale-wrapper">
+    <div id="app-container">
+        <!-- Status Bar -->
+        <div id="status-bar">
+            <div class="status-group">
+                <span class="status-label">Current Phase</span>
+                <span id="phase-text">Loading...</span>
+            </div>
+            <div class="status-group" style="border-left: 2px solid #eee; padding-left: 25px;">
+                <span class="status-label">Simulated Temp</span>
+                <div id="temp-display"><span id="temp-text">25</span><span class="deg">°C</span></div>
+            </div>
         </div>
-        <div class="status-group" style="border-left: 2px solid #eee; padding-left: 25px;">
-            <span class="status-label">Simulated Temp</span>
-            <div id="temp-display"><span id="temp-text">25</span><span class="deg">°C</span></div>
-        </div>
-    </div>
 
-    <!-- Description Container -->
-    <div id="desc-container">
-        <span id="desc-text">Initializing...</span>
-    </div>
+        <!-- Description Container -->
+        <div id="desc-container">
+            <span id="desc-text">Initializing...</span>
+        </div>
 
-    <!-- Legend -->
-    <div id="legend">
-        <div style="font-weight: bold; margin-bottom: 10px; font-size: 0.9rem;">Legend</div>
-        <div class="legend-item">
-            <div class="color-box" style="background-color: var(--primary-blue);"></div>
-            <span>Original Template DNA</span>
+        <!-- Legend -->
+        <div id="legend">
+            <div style="font-weight: bold; margin-bottom: 10px; font-size: 0.9rem;">Legend</div>
+            <div class="legend-item">
+                <div class="color-box" style="background-color: var(--primary-blue);"></div>
+                <span>Original Template DNA</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box" style="background-color: var(--red);"></div>
+                <span>Primer</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box" style="background-color: var(--teal);"></div>
+                <span>Newly Synthesized DNA</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-oval"></div>
+                <span>DNA Polymerase</span>
+            </div>
         </div>
-        <div class="legend-item">
-            <div class="color-box" style="background-color: var(--red);"></div>
-            <span>Primer</span>
-        </div>
-        <div class="legend-item">
-            <div class="color-box" style="background-color: var(--teal);"></div>
-            <span>Newly Synthesized DNA</span>
-        </div>
-        <div class="legend-item">
-            <div class="color-oval"></div>
-            <span>DNA Polymerase</span>
-        </div>
-    </div>
 
-    <!-- Controls -->
-    <div id="controls">
-        <button id="next-btn" disabled>Preparing...</button>
-    </div>
+        <!-- Controls -->
+        <div id="controls">
+            <button id="next-btn" disabled>Preparing...</button>
+        </div>
 
-    <canvas id="pcr-canvas" width="1600" height="900"></canvas>
+        <!-- High resolution internal canvas for sharpness -->
+        <canvas id="pcr-canvas" width="1600" height="900"></canvas>
+    </div>
 </div>
 
 <script>
@@ -280,6 +293,20 @@
     let conditionFn = null;
     let onReadyFn = null;
     let waiting = false;
+
+    // Relative Scaling Logic to Lock UI
+    function handleResize() {
+        const wrapper = document.getElementById('scale-wrapper');
+        const app = document.getElementById('app-container');
+        // Container logical resolution is 1280x720
+        const scaleX = wrapper.clientWidth / 1280;
+        const scaleY = wrapper.clientHeight / 720;
+        // Keep 95% to leave a small margin around the app
+        const scale = Math.min(scaleX, scaleY) * 0.95;
+        app.style.transform = `scale(${scale})`;
+    }
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initial call to fit screen
 
     function initLayout() {
         globalStartX = canvas.width * 0.25;
