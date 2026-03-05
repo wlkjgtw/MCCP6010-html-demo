@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCR (Polymerase Chain Reaction) Micro-process Animation</title>
+    <style>
+        :root {
+            --bg-color: #FFFFFF;
+            --text-color: #333333;
+            --primary-blue: #0056b3;
+            --teal: #00C4CC;
+            --red: #D9534F;
+            --green: #28a745;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #f4f6f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #app-container {
+            position: relative;
+            width: 100%;
+            max-width: 1280px;
+            aspect-ratio: 16 / 9;
+            background-color: var(--bg-color);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* Status Bar Overlay */
+        #status-bar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 30px;
+            border-radius: 40px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            border: 1px solid #eaeaea;
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            z-index: 10;
+        }
+
+        .status-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .status-label {
+            font-size: 0.7rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+        }
+
+        #phase-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        #temp-display {
+            display: flex;
+            align-items: flex-start;
+            font-size: 1.4rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            transition: color 0.1s ease;
+        }
+
+        .deg {
+            font-size: 0.9rem;
+            margin-top: 2px;
+        }
+
+        /* Description Area */
+        #desc-container {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(248, 249, 250, 0.95);
+            padding: 8px 20px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            font-size: 0.85rem;
+            color: #444;
+            text-align: center;
+            max-width: 70%;
+            z-index: 10;
+        }
+
+        /* Legend positioned at Top-Left to prevent overlapping with flying primers */
+        #legend {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            border: 1px solid #eee;
+            font-size: 0.75rem;
+            z-index: 10;
+            color: #444;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .legend-item:last-child { margin-bottom: 0; }
+        
+        .color-box {
+            width: 20px;
+            height: 5px;
+            border-radius: 2px;
+            margin-right: 10px;
+        }
+        .color-oval {
+            width: 16px;
+            height: 10px;
+            border-radius: 8px;
+            margin-right: 10px;
+            margin-left: 2px;
+            background-color: var(--green);
+            opacity: 0.8;
+            border: 1px solid #1e8232;
+        }
+
+        /* Controls */
+        #controls {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            z-index: 10;
+        }
+
+        #next-btn {
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 86, 179, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        #next-btn:hover:not(:disabled) {
+            background-color: #004494;
+            transform: translateY(-2px);
+        }
+
+        #next-btn:disabled {
+            background-color: #b0c4de;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <!-- Status Bar -->
+    <div id="status-bar">
+        <div class="status-group">
+            <span class="status-label">Current Phase</span>
+            <span id="phase-text">Loading...</span>
+        </div>
+        <div class="status-group" style="border-left: 2px solid #eee; padding-left: 25px;">
+            <span class="status-label">Simulated Temp</span>
+            <div id="temp-display"><span id="temp-text">25</span><span class="deg">°C</span></div>
+        </div>
+    </div>
+
+    <!-- Description Container -->
+    <div id="desc-container">
+        <span id="desc-text">Initializing...</span>
+    </div>
+
+    <!-- Legend -->
+    <div id="legend">
+        <div style="font-weight: bold; margin-bottom: 10px; font-size: 0.9rem;">Legend</div>
+        <div class="legend-item">
+            <div class="color-box" style="background-color: var(--primary-blue);"></div>
+            <span>Original Template DNA</span>
+        </div>
+        <div class="legend-item">
+            <div class="color-box" style="background-color: var(--red);"></div>
+            <span>Primer</span>
+        </div>
+        <div class="legend-item">
+            <div class="color-box" style="background-color: var(--teal);"></div>
+            <span>Newly Synthesized DNA</span>
+        </div>
+        <div class="legend-item">
+            <div class="color-oval"></div>
+            <span>DNA Polymerase</span>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div id="controls">
+        <button id="next-btn" disabled>Preparing...</button>
+    </div>
+
+    <canvas id="pcr-canvas" width="1600" height="900"></canvas>
+</div>
+
+<script>
+    /**
+     * PCR Animation - 2D State Machine (Interactive Version)
+     */
+
+    const canvas = document.getElementById('pcr-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // UI Elements
+    const phaseTextEl = document.getElementById('phase-text');
+    const tempTextEl = document.getElementById('temp-text');
+    const tempDisplayEl = document.getElementById('temp-display');
+    const descTextEl = document.getElementById('desc-text');
+    const nextBtn = document.getElementById('next-btn');
+    const legendEl = document.getElementById('legend');
+
+    // Global Configuration
+    const COLORS = {
+        template: '#0056b3', // Deep Blue
+        new: '#00C4CC',      // Bright Teal
+        primer: '#D9534F',   // Vibrant Red
+        poly: 'rgba(40, 167, 69, 0.7)', // Translucent Green
+        polyBorder: 'rgba(30, 130, 50, 0.8)'
+    };
+
+    let globalStartX, globalEndX, globalLength, numBPs = 30;
+    let strands = [];
+    let polymerases = [];
+
+    // State Machine Variables
+    let currentPhase = 0;
+    let targetTemp = 25;
+    let currentTempAnim = 25;
+    
+    // Exponential Phase Variables
+    let isExponential = false;
+    let cycleCount = 2;
+    let cycleTimer = 0;
+    let miniStrands = [];
+    let showEllipsis = false; // Add variable for ellipsis display
+    
+    // Flow Control
+    let conditionFn = null;
+    let onReadyFn = null;
+    let waiting = false;
+
+    function initLayout() {
+        globalStartX = canvas.width * 0.25;
+        globalEndX = canvas.width * 0.75;
+        globalLength = globalEndX - globalStartX;
+    }
+
+    /**
+     * Object-Oriented Entities
+     */
+    class Strand {
+        // Includes labels for 5'/3' directionality and primer names
+        constructor(x1, x2, y, color, tickDir, leftLabel = "", rightLabel = "", name = "") {
+            this.x1 = x1;
+            this.x2 = x2;
+            this.y = y;
+            this.color = color;
+            this.tickDir = tickDir; 
+            this.leftLabel = leftLabel;
+            this.rightLabel = rightLabel;
+            this.name = name;
+            
+            this.targetY = y;
+            this.targetX1 = x1;
+            this.targetX2 = x2;
+            
+            this.isExtending = false;
+            this.growsLeft = false;
+            this.hasPrimer = false;
+            this.boundX1 = 0;
+            this.boundX2 = 0;
+            this.nameAlpha = 1; // Used for fading out primer names
+            this.globalAlpha = 1; // Used for fading out the entire strand later
+        }
+
+        update() {
+            this.y += (this.targetY - this.y) * 0.035;
+
+            if (this.isExtending) {
+                const extensionSpeed = 5;
+                if (Math.abs(this.targetX1 - this.x1) > extensionSpeed) {
+                    this.x1 += Math.sign(this.targetX1 - this.x1) * extensionSpeed;
+                } else {
+                    this.x1 = this.targetX1;
+                }
+                
+                if (Math.abs(this.targetX2 - this.x2) > extensionSpeed) {
+                    this.x2 += Math.sign(this.targetX2 - this.x2) * extensionSpeed;
+                } else {
+                    this.x2 = this.targetX2;
+                }
+                // Fade out primer name during extension
+                this.nameAlpha = Math.max(0, this.nameAlpha - 0.02);
+            } else {
+                this.x1 += (this.targetX1 - this.x1) * 0.02;
+                this.x2 += (this.targetX2 - this.x2) * 0.02;
+            }
+        }
+
+        draw(ctx) {
+            if (this.globalAlpha <= 0.01) return;
+            ctx.save();
+            ctx.globalAlpha = this.globalAlpha;
+
+            let minX = Math.min(this.x1, this.x2);
+            let maxX = Math.max(this.x1, this.x2);
+
+            // 1. Draw main backbone
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(this.x1, this.y);
+            ctx.lineTo(this.x2, this.y);
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 5;
+            ctx.stroke();
+
+            // 2. Draw primer overlay
+            if (this.hasPrimer) {
+                ctx.beginPath();
+                ctx.moveTo(this.boundX1, this.y);
+                ctx.lineTo(this.boundX2, this.y);
+                ctx.strokeStyle = COLORS.primer;
+                ctx.lineWidth = 5;
+                ctx.stroke();
+            }
+
+            // 3. Draw Base Pair Ticks
+            ctx.lineWidth = 3;
+            let spacing = globalLength / numBPs;
+            for (let i = 0; i <= numBPs; i++) {
+                let tickX = globalStartX + i * spacing;
+                if (tickX >= minX - 1 && tickX <= maxX + 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(tickX, this.y);
+                    ctx.lineTo(tickX, this.y + this.tickDir * 10); 
+                    if (this.hasPrimer && tickX >= Math.min(this.boundX1, this.boundX2) && tickX <= Math.max(this.boundX1, this.boundX2)) {
+                        ctx.strokeStyle = COLORS.primer;
+                    } else {
+                        ctx.strokeStyle = this.color;
+                    }
+                    ctx.stroke();
+                }
+            }
+
+            // 4. Draw 5' / 3' Labels and Primer Names ONLY in Phase 3
+            if (currentPhase === 3) {
+                ctx.font = "bold 14px Arial";
+                ctx.fillStyle = this.color;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+
+                if (this.leftLabel) {
+                    ctx.fillText(this.leftLabel, minX - 30, this.y);
+                }
+                if (this.rightLabel) {
+                    ctx.fillText(this.rightLabel, maxX + 30, this.y);
+                }
+
+                if (this.name && this.nameAlpha > 0.01) {
+                    ctx.fillStyle = `rgba(217, 83, 79, ${this.nameAlpha})`; 
+                    ctx.font = "bold 14px 'Segoe UI', Roboto, sans-serif";
+                    // Position text relative to tick direction to avoid overlapping the backbone
+                    let nameY = this.y + (this.tickDir * -26); 
+                    ctx.fillText(this.name, minX + (maxX - minX)/2, nameY);
+                }
+            }
+            
+            ctx.restore();
+        }
+    }
+
+    class MiniStrand {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.targetX = x;
+            this.targetY = y;
+            this.length = 70; // Represents the target region length cleanly
+        }
+        update() {
+            // Smooth lerp to target grid position - slowed down for better visibility
+            this.x += (this.targetX - this.x) * 0.04;
+            this.y += (this.targetY - this.y) * 0.04;
+        }
+        draw(ctx) {
+            let half = this.length / 2;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            // Draw as a miniature double-stranded DNA
+            ctx.moveTo(this.x - half, this.y - 5);
+            ctx.lineTo(this.x + half, this.y - 5);
+            
+            ctx.moveTo(this.x - half, this.y + 5);
+            ctx.lineTo(this.x + half, this.y + 5);
+            
+            ctx.strokeStyle = COLORS.new;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        }
+    }
+
+    class Polymerase {
+        constructor(strandToFollow) {
+            this.strand = strandToFollow;
+            this.alpha = 0;
+            this.targetAlpha = 1;
+        }
+        update() {
+            this.alpha += (this.targetAlpha - this.alpha) * 0.1;
+        }
+        draw(ctx) {
+            if (this.alpha < 0.01) return;
+            let x = this.strand.growsLeft ? this.strand.x1 : this.strand.x2;
+            let y = this.strand.y;
+
+            ctx.fillStyle = `rgba(40, 167, 69, ${this.alpha * 0.7})`;
+            ctx.strokeStyle = `rgba(30, 130, 50, ${this.alpha * 0.9})`;
+            
+            ctx.beginPath();
+            let clampY = y + this.strand.tickDir * 12; 
+            ctx.ellipse(x, clampY, 24, 30, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+    }
+
+    /**
+     * Logic Helpers
+     */
+    function spawnPrimer(templateStrand, index) {
+        let pl = globalLength * 0.12; 
+        let pr;
+        let startOffY = (index % 2 === 0) ? -200 : canvas.height + 200;
+
+        if (templateStrand.tickDir === 1) { 
+            // Template on Top (5' left, 3' right). Reverse primer binds to right side, extends left.
+            pr = new Strand(globalEndX + 200, globalEndX + 200 + pl, startOffY, COLORS.primer, -1, "3'", "5'", "Reverse Primer");
+            pr.targetX1 = globalEndX - pl;
+            pr.targetX2 = globalEndX;
+            pr.targetY = templateStrand.targetY + 22; 
+            pr.growsLeft = true;
+        } else { 
+            // Template on Bottom (3' left, 5' right). Forward primer binds to left side, extends right.
+            pr = new Strand(globalStartX - 200 - pl, globalStartX - 200, startOffY, COLORS.primer, 1, "5'", "3'", "Forward Primer");
+            pr.targetX1 = globalStartX;
+            pr.targetX2 = globalStartX + pl;
+            pr.targetY = templateStrand.targetY - 22; 
+            pr.growsLeft = false;
+        }
+        strands.push(pr);
+        return pr;
+    }
+
+    function startExtension(primerStrand) {
+        primerStrand.hasPrimer = true;
+        primerStrand.boundX1 = primerStrand.x1;
+        primerStrand.boundX2 = primerStrand.x2;
+        primerStrand.color = COLORS.new;
+        primerStrand.isExtending = true;
+
+        if (primerStrand.growsLeft) {
+            primerStrand.targetX1 = globalStartX;
+        } else {
+            primerStrand.targetX2 = globalEndX;
+        }
+
+        let poly = new Polymerase(primerStrand);
+        polymerases.push(poly);
+        return poly;
+    }
+
+    function setPhase(name, temp, desc) {
+        phaseTextEl.innerText = name;
+        targetTemp = temp;
+        descTextEl.innerText = desc;
+    }
+
+    // Draw Target Amplification Region Background
+    function drawTargetRegion(ctx) {
+        if (currentPhase === 3) {
+            ctx.fillStyle = "rgba(0, 196, 204, 0.04)"; 
+            ctx.fillRect(globalStartX, 0, globalLength, canvas.height);
+            
+            ctx.setLineDash([8, 6]);
+            ctx.strokeStyle = "#bbb";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(globalStartX, 0); ctx.lineTo(globalStartX, canvas.height);
+            ctx.moveTo(globalEndX, 0); ctx.lineTo(globalEndX, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.fillStyle = "#888";
+            ctx.font = "bold 15px 'Segoe UI', Roboto, sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("Target Amplification Region (Target X)", canvas.width/2, canvas.height - 40);
+        }
+    }
+
+    function waitFor(condition, onReady) {
+        conditionFn = condition;
+        onReadyFn = onReady;
+        waiting = false;
+    }
+
+    function updateTempColor(temp) {
+        // Blue (25°C) -> Red (94°C)
+        let ratio = (temp - 25) / (94 - 25);
+        ratio = Math.max(0, Math.min(1, ratio));
+        let hue = 240 - (ratio * 240); 
+        tempDisplayEl.style.color = `hsl(${hue}, 85%, 55%)`;
+    }
+
+    // Grid layout calculator for exponential phase
+    function recalculateTargets(arr) {
+        let cols = 4;
+        if (arr.length > 16) cols = 8; // Switch to 8 columns for 32 items
+        let rows = Math.ceil(arr.length / cols);
+
+        let spacingX = 130;
+        let spacingY = 60;
+
+        let startX = canvas.width / 2 - ((cols - 1) * spacingX) / 2;
+        // Shift slightly down to avoid UI elements
+        let startY = canvas.height / 2 - ((rows - 1) * spacingY) / 2 + 40;
+
+        arr.forEach((ms, i) => {
+            let col = i % cols;
+            let row = Math.floor(i / cols);
+            ms.targetX = startX + col * spacingX;
+            ms.targetY = startY + row * spacingY;
+        });
+    }
+
+    /**
+     * State Machine Sequence
+     */
+    function executeNextPhase() {
+        if (currentPhase === 9) {
+            // Reset logic
+            strands = [];
+            polymerases = [];
+            miniStrands = [];
+            currentPhase = 0;
+            currentTempAnim = 25;
+            isExponential = false;
+            showEllipsis = false;
+        }
+
+        currentPhase++;
+        let cy = canvas.height / 2;
+        nextBtn.disabled = true; 
+
+        switch(currentPhase) {
+            case 1:
+                legendEl.style.display = 'block'; // Show legend in micro view
+                setPhase("Preparation", 25, "Double-stranded DNA template is ready for the amplification process.");
+                strands.push(new Strand(globalStartX, globalEndX, cy - 11, COLORS.template, 1, "5'", "3'"));
+                strands.push(new Strand(globalStartX, globalEndX, cy + 11, COLORS.template, -1, "3'", "5'"));
+                nextBtn.innerText = "Next: Denaturation";
+                nextBtn.disabled = false; 
+                break;
+
+            case 2:
+                setPhase("Cycle 1: Denaturation", 94, "Temperature rises to 94°C. Hydrogen bonds break, separating the DNA into two single strands.");
+                nextBtn.innerText = "Animating...";
+                strands[0].targetY = cy - 120;
+                strands[1].targetY = cy + 120;
+                waitFor(() => Math.abs(strands[0].y - strands[0].targetY) < 1, () => {
+                    nextBtn.innerText = "Next: Annealing";
+                    nextBtn.disabled = false;
+                });
+                break;
+
+            case 3:
+                setPhase("Cycle 1: Annealing", 55, "Temperature drops to 55°C. Forward and reverse primers bind to the complementary sequences flanking the target region.");
+                nextBtn.innerText = "Animating...";
+                spawnPrimer(strands[0], 0);
+                spawnPrimer(strands[1], 1);
+                waitFor(() => Math.abs(strands[2].y - strands[2].targetY) < 1, () => {
+                    nextBtn.innerText = "Next: Extension";
+                    nextBtn.disabled = false;
+                });
+                break;
+
+            case 4:
+                setPhase("Cycle 1: Extension", 72, "Temperature rises to 72°C. DNA polymerase binds and synthesizes the new complementary strand from 5' to 3'.");
+                nextBtn.innerText = "Animating...";
+                startExtension(strands[2]);
+                startExtension(strands[3]);
+                waitFor(() => Math.abs(strands[2].x1 - strands[2].targetX1) < 1, () => {
+                    polymerases.forEach(p => p.targetAlpha = 0); 
+                    nextBtn.innerText = "Enter Cycle 2";
+                    nextBtn.disabled = false;
+                });
+                break;
+
+            case 5:
+                setPhase("Cycle 2: Denaturation", 94, "Temperature rises again. The 2 newly formed double-stranded DNA molecules separate to form 4 single-stranded templates.");
+                nextBtn.innerText = "Animating...";
+                // Spread slightly less than before to ensure it doesn't overlap top description texts
+                strands[0].targetY = cy - 240; 
+                strands[2].targetY = cy - 80;  
+                strands[3].targetY = cy + 80;  
+                strands[1].targetY = cy + 240; 
+                waitFor(() => Math.abs(strands[0].y - strands[0].targetY) < 1, () => {
+                    nextBtn.innerText = "Next: Annealing";
+                    nextBtn.disabled = false;
+                });
+                break;
+
+            case 6:
+                setPhase("Cycle 2: Annealing", 55, "Temperature drops. 4 new primers bind to the corresponding positions on the 4 single strands.");
+                nextBtn.innerText = "Animating...";
+                spawnPrimer(strands[0], 0);
+                spawnPrimer(strands[1], 1);
+                spawnPrimer(strands[2], 2);
+                spawnPrimer(strands[3], 3);
+                waitFor(() => Math.abs(strands[4].y - strands[4].targetY) < 1, () => {
+                    nextBtn.innerText = "Next: Extension";
+                    nextBtn.disabled = false;
+                });
+                break;
+
+            case 7:
+                setPhase("Cycle 2: Extension", 72, "Extension occurs again, resulting in 4 double-stranded DNA molecules. The target region fragment begins to dominate.");
+                nextBtn.innerText = "Animating...";
+                startExtension(strands[4]);
+                startExtension(strands[5]);
+                startExtension(strands[6]);
+                startExtension(strands[7]);
+                waitFor(() => Math.abs(strands[4].x1 - strands[4].targetX1) < 1, () => {
+                    polymerases.forEach(p => p.targetAlpha = 0);
+                    nextBtn.innerText = "Run Cycles 3-5";
+                    nextBtn.disabled = false;
+                });
+                break;
+
+            case 8:
+                legendEl.style.display = 'none'; // Hide legend in macro view
+                setPhase("Cycle 3", 94, "Observe the structured, semi-conservative replication doubling the target products.");
+                nextBtn.innerText = "Amplifying...";
+                nextBtn.disabled = true;
+                
+                isExponential = true;
+                cycleCount = 2; // Started with products of cycle 2
+                cycleTimer = 0;
+                miniStrands = [];
+                showEllipsis = false;
+                
+                // Spawn initial 4 mini strands from the center of the detailed strands
+                for(let i = 4; i <= 7; i++) {
+                    let cx = (strands[i].x1 + strands[i].x2) / 2;
+                    let cy = strands[i].y;
+                    miniStrands.push(new MiniStrand(cx, cy));
+                }
+                recalculateTargets(miniStrands);
+                break;
+
+            case 9:
+                setPhase("PCR Demonstration Complete", 25, "The PCR process is complete. Billions of target DNA copies have been successfully amplified.");
+                nextBtn.innerText = "Restart";
+                nextBtn.disabled = false;
+                break;
+        }
+    }
+
+    // Button Event Listener
+    nextBtn.addEventListener('click', executeNextPhase);
+
+    /**
+     * Main Animation Loop
+     */
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // UI Dynamic Temperature Update
+        currentTempAnim += (targetTemp - currentTempAnim) * 0.05;
+        tempTextEl.innerText = Math.round(currentTempAnim);
+        updateTempColor(currentTempAnim);
+
+        // Background Annotation Layer
+        drawTargetRegion(ctx);
+
+        // Wait Condition Monitoring
+        if (conditionFn && conditionFn()) {
+            if (!waiting) {
+                waiting = true;
+                if (onReadyFn) onReadyFn(); // Trigger button enable
+                conditionFn = null;
+                onReadyFn = null;
+            }
+        }
+
+        // Entity Drawing
+        strands.forEach(s => { s.update(); s.draw(ctx); });
+        polymerases.forEach(p => { p.update(); p.draw(ctx); });
+
+        if (isExponential) {
+            // Fade out the detailed strands
+            strands.forEach(s => s.globalAlpha = Math.max(0, s.globalAlpha - 0.05));
+            
+            // Check if all ministrands have reached their grid targets
+            let isMoving = miniStrands.some(ms => Math.abs(ms.x - ms.targetX) > 1 || Math.abs(ms.y - ms.targetY) > 1);
+            
+            if (!isMoving && cycleCount < 5) {
+                cycleTimer++;
+                
+                // Properly synchronize temperature phases without blocking the logic
+                if (cycleTimer === 10) {
+                    targetTemp = 94;
+                    phaseTextEl.innerText = `Cycle ${cycleCount + 1}`;
+                } else if (cycleTimer === 50) {
+                    targetTemp = 55;
+                } else if (cycleTimer === 90) {
+                    targetTemp = 72;
+                } else if (cycleTimer > 120) { 
+                    cycleTimer = 0;
+                    cycleCount++;
+                    
+                    // Double the products perfectly at the end of the extending phase
+                    let currentCount = miniStrands.length;
+                    for(let i = 0; i < currentCount; i++) {
+                        miniStrands.push(new MiniStrand(miniStrands[i].x, miniStrands[i].y));
+                    }
+                    
+                    recalculateTargets(miniStrands);
+                }
+            } else if (!isMoving && cycleCount >= 5) {
+                // Reached 32 products (Cycle 5)
+                showEllipsis = true;
+                targetTemp = 25; // Cool down
+                phaseTextEl.innerText = `Cycles 6-30`;
+                
+                if (nextBtn.disabled) {
+                    nextBtn.innerText = "Finish";
+                    nextBtn.disabled = false;
+                }
+            }
+
+            miniStrands.forEach(ms => {
+                ms.update();
+                ms.draw(ctx);
+            });
+
+            // Draw ellipsis and summary text at the bottom
+            if (showEllipsis) {
+                ctx.fillStyle = "#888";
+                ctx.font = "bold 60px 'Segoe UI', Roboto, sans-serif";
+                ctx.textAlign = "center";
+                // Render Ellipsis
+                ctx.fillText("...", canvas.width / 2, canvas.height - 180);
+                
+                ctx.font = "bold 22px 'Segoe UI', Roboto, sans-serif";
+                ctx.fillStyle = "#666";
+                ctx.fillText("Process repeats up to 30-40 cycles ( > 1 Billion copies )", canvas.width / 2, canvas.height - 130);
+            }
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    // Initialize Application
+    initLayout();
+    executeNextPhase(); 
+    requestAnimationFrame(animate);
+
+</script>
+</body>
+</html>
