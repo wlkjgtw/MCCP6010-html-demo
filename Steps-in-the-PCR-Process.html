@@ -22,33 +22,32 @@
             background-color: #f4f6f9;
             overflow: hidden; /* Prevent scrolling to keep it app-like */
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        /* NEW: Wrapper to handle automatic proportional scaling */
-        #scale-wrapper {
-            width: 100vw;
-            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
         }
 
-        /* FIXED: Fixed logical resolution. It will be scaled via JS */
+        /* BEST PRACTICE RESPONSIVE CONTAINER:
+           Maintains perfect 16:9 aspect ratio and fits completely within the viewport 
+           without relying on JavaScript scaling hacks.
+        */
         #app-container {
             position: relative;
-            width: 1280px; 
-            height: 720px;
+            /* 96vw/vh gives a 2% margin on all sides */
+            width: min(96vw, calc(96vh * 16 / 9));
+            height: min(96vh, calc(96vw * 9 / 16));
+            max-width: 1280px; 
+            max-height: 720px;
             background-color: var(--bg-color);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
             border-radius: 12px;
             overflow: hidden;
-            transform-origin: center center;
         }
 
         /* Status Bar Overlay */
         #status-bar {
             position: absolute;
-            top: 20px;
+            top: 4%;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(255, 255, 255, 0.95);
@@ -100,26 +99,27 @@
         /* Description Area */
         #desc-container {
             position: absolute;
-            bottom: 30px;
+            bottom: 5%;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(248, 249, 250, 0.95);
-            padding: 8px 20px;
+            padding: 10px 25px;
             border-radius: 8px;
             border: 1px solid #e0e0e0;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             color: #444;
             text-align: center;
-            max-width: 70%;
+            width: auto;
+            max-width: 75%;
             z-index: 10;
         }
 
         /* Legend positioned at Top-Left */
         #legend {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 4%;
+            left: 2%;
             background: rgba(255, 255, 255, 0.9);
             padding: 10px 15px;
             border-radius: 8px;
@@ -157,8 +157,8 @@
         /* Controls */
         #controls {
             position: absolute;
-            bottom: 25px;
-            right: 25px;
+            bottom: 5%;
+            right: 2%;
             z-index: 10;
         }
 
@@ -188,64 +188,101 @@
             transform: none;
         }
 
+        /* CSS scaling internally */
         canvas {
             display: block;
             width: 100%;
             height: 100%;
         }
+
+        /* ==================================================
+           MOBILE & SMALL SCREEN RESPONSIVE ADAPTATIONS
+           Ensures UI text/buttons don't become microscopic 
+           ================================================== */
+        @media (max-width: 800px), (max-height: 500px) {
+            #status-bar {
+                top: 2%;
+                padding: 6px 15px;
+                gap: 15px;
+            }
+            .status-group[style] {
+                padding-left: 15px !important; /* Overriding inline style */
+            }
+            #phase-text { font-size: 0.85rem; }
+            #temp-display { font-size: 1.1rem; }
+            .status-label { font-size: 0.55rem; }
+            
+            #legend {
+                top: 2%;
+                padding: 6px 10px;
+                font-size: 0.65rem;
+            }
+            .color-box { width: 12px; height: 3px; margin-right: 6px; }
+            .color-oval { width: 10px; height: 6px; margin-right: 6px; }
+
+            #desc-container {
+                bottom: 2%;
+                padding: 8px 12px;
+                font-size: 0.75rem;
+                width: 90%; /* Wider on mobile */
+            }
+
+            #controls { bottom: 2%; right: 2%; }
+            #next-btn {
+                padding: 8px 16px;
+                font-size: 0.85rem;
+            }
+        }
     </style>
 </head>
 <body>
 
-<!-- New wrapper for global scaling -->
-<div id="scale-wrapper">
-    <div id="app-container">
-        <!-- Status Bar -->
-        <div id="status-bar">
-            <div class="status-group">
-                <span class="status-label">Current Phase</span>
-                <span id="phase-text">Loading...</span>
-            </div>
-            <div class="status-group" style="border-left: 2px solid #eee; padding-left: 25px;">
-                <span class="status-label">Simulated Temp</span>
-                <div id="temp-display"><span id="temp-text">25</span><span class="deg">°C</span></div>
-            </div>
+<div id="app-container">
+    <!-- Status Bar -->
+    <div id="status-bar">
+        <div class="status-group">
+            <span class="status-label">Current Phase</span>
+            <span id="phase-text">Loading...</span>
         </div>
-
-        <!-- Description Container -->
-        <div id="desc-container">
-            <span id="desc-text">Initializing...</span>
+        <div class="status-group" style="border-left: 2px solid #eee; padding-left: 25px;">
+            <span class="status-label">Simulated Temp</span>
+            <div id="temp-display"><span id="temp-text">25</span><span class="deg">°C</span></div>
         </div>
-
-        <!-- Legend -->
-        <div id="legend">
-            <div style="font-weight: bold; margin-bottom: 10px; font-size: 0.9rem;">Legend</div>
-            <div class="legend-item">
-                <div class="color-box" style="background-color: var(--primary-blue);"></div>
-                <span>Original Template DNA</span>
-            </div>
-            <div class="legend-item">
-                <div class="color-box" style="background-color: var(--red);"></div>
-                <span>Primer</span>
-            </div>
-            <div class="legend-item">
-                <div class="color-box" style="background-color: var(--teal);"></div>
-                <span>Newly Synthesized DNA</span>
-            </div>
-            <div class="legend-item">
-                <div class="color-oval"></div>
-                <span>DNA Polymerase</span>
-            </div>
-        </div>
-
-        <!-- Controls -->
-        <div id="controls">
-            <button id="next-btn" disabled>Preparing...</button>
-        </div>
-
-        <!-- High resolution internal canvas for sharpness -->
-        <canvas id="pcr-canvas" width="1600" height="900"></canvas>
     </div>
+
+    <!-- Description Container -->
+    <div id="desc-container">
+        <span id="desc-text">Initializing...</span>
+    </div>
+
+    <!-- Legend -->
+    <div id="legend">
+        <div style="font-weight: bold; margin-bottom: 10px; font-size: 0.9rem;">Legend</div>
+        <div class="legend-item">
+            <div class="color-box" style="background-color: var(--primary-blue);"></div>
+            <span>Original Template DNA</span>
+        </div>
+        <div class="legend-item">
+            <div class="color-box" style="background-color: var(--red);"></div>
+            <span>Primer</span>
+        </div>
+        <div class="legend-item">
+            <div class="color-box" style="background-color: var(--teal);"></div>
+            <span>Newly Synthesized DNA</span>
+        </div>
+        <div class="legend-item">
+            <div class="color-oval"></div>
+            <span>DNA Polymerase</span>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div id="controls">
+        <button id="next-btn" disabled>Preparing...</button>
+    </div>
+
+    <!-- High resolution internal canvas for sharpness on all displays -->
+    <canvas id="pcr-canvas" width="1600" height="900"></canvas>
 </div>
 
 <script>
@@ -287,26 +324,12 @@
     let cycleCount = 2;
     let cycleTimer = 0;
     let miniStrands = [];
-    let showEllipsis = false; // Add variable for ellipsis display
+    let showEllipsis = false;
     
     // Flow Control
     let conditionFn = null;
     let onReadyFn = null;
     let waiting = false;
-
-    // Relative Scaling Logic to Lock UI
-    function handleResize() {
-        const wrapper = document.getElementById('scale-wrapper');
-        const app = document.getElementById('app-container');
-        // Container logical resolution is 1280x720
-        const scaleX = wrapper.clientWidth / 1280;
-        const scaleY = wrapper.clientHeight / 720;
-        // Keep 95% to leave a small margin around the app
-        const scale = Math.min(scaleX, scaleY) * 0.95;
-        app.style.transform = `scale(${scale})`;
-    }
-    window.addEventListener('resize', handleResize);
-    handleResize(); // Initial call to fit screen
 
     function initLayout() {
         globalStartX = canvas.width * 0.25;
@@ -318,7 +341,6 @@
      * Object-Oriented Entities
      */
     class Strand {
-        // Includes labels for 5'/3' directionality and primer names
         constructor(x1, x2, y, color, tickDir, leftLabel = "", rightLabel = "", name = "") {
             this.x1 = x1;
             this.x2 = x2;
@@ -338,8 +360,8 @@
             this.hasPrimer = false;
             this.boundX1 = 0;
             this.boundX2 = 0;
-            this.nameAlpha = 1; // Used for fading out primer names
-            this.globalAlpha = 1; // Used for fading out the entire strand later
+            this.nameAlpha = 1; 
+            this.globalAlpha = 1; 
         }
 
         update() {
@@ -358,7 +380,6 @@
                 } else {
                     this.x2 = this.targetX2;
                 }
-                // Fade out primer name during extension
                 this.nameAlpha = Math.max(0, this.nameAlpha - 0.02);
             } else {
                 this.x1 += (this.targetX1 - this.x1) * 0.02;
@@ -413,7 +434,7 @@
 
             // 4. Draw 5' / 3' Labels and Primer Names ONLY in Phase 3
             if (currentPhase === 3) {
-                ctx.font = "bold 14px Arial";
+                ctx.font = "bold 18px Arial"; /* Increased for Canvas scaling */
                 ctx.fillStyle = this.color;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
@@ -427,8 +448,7 @@
 
                 if (this.name && this.nameAlpha > 0.01) {
                     ctx.fillStyle = `rgba(217, 83, 79, ${this.nameAlpha})`; 
-                    ctx.font = "bold 14px 'Segoe UI', Roboto, sans-serif";
-                    // Position text relative to tick direction to avoid overlapping the backbone
+                    ctx.font = "bold 16px 'Segoe UI', Roboto, sans-serif";
                     let nameY = this.y + (this.tickDir * -26); 
                     ctx.fillText(this.name, minX + (maxX - minX)/2, nameY);
                 }
@@ -444,10 +464,9 @@
             this.y = y;
             this.targetX = x;
             this.targetY = y;
-            this.length = 70; // Represents the target region length cleanly
+            this.length = 70; 
         }
         update() {
-            // Smooth lerp to target grid position - slowed down for better visibility
             this.x += (this.targetX - this.x) * 0.04;
             this.y += (this.targetY - this.y) * 0.04;
         }
@@ -455,7 +474,6 @@
             let half = this.length / 2;
             ctx.lineCap = 'round';
             ctx.beginPath();
-            // Draw as a miniature double-stranded DNA
             ctx.moveTo(this.x - half, this.y - 5);
             ctx.lineTo(this.x + half, this.y - 5);
             
@@ -503,14 +521,12 @@
         let startOffY = (index % 2 === 0) ? -200 : canvas.height + 200;
 
         if (templateStrand.tickDir === 1) { 
-            // Template on Top (5' left, 3' right). Reverse primer binds to right side, extends left.
             pr = new Strand(globalEndX + 200, globalEndX + 200 + pl, startOffY, COLORS.primer, -1, "3'", "5'", "Reverse Primer");
             pr.targetX1 = globalEndX - pl;
             pr.targetX2 = globalEndX;
             pr.targetY = templateStrand.targetY + 22; 
             pr.growsLeft = true;
         } else { 
-            // Template on Bottom (3' left, 5' right). Forward primer binds to left side, extends right.
             pr = new Strand(globalStartX - 200 - pl, globalStartX - 200, startOffY, COLORS.primer, 1, "5'", "3'", "Forward Primer");
             pr.targetX1 = globalStartX;
             pr.targetX2 = globalStartX + pl;
@@ -561,9 +577,10 @@
             ctx.setLineDash([]);
             
             ctx.fillStyle = "#888";
-            ctx.font = "bold 15px 'Segoe UI', Roboto, sans-serif";
+            ctx.font = "bold 18px 'Segoe UI', Roboto, sans-serif";
             ctx.textAlign = "center";
-            ctx.fillText("Target Amplification Region (Target X)", canvas.width/2, canvas.height - 40);
+            // Moved Target X text slightly lower to avoid overlapping top UI
+            ctx.fillText("Target Amplification Region (Target X)", canvas.width/2, 240);
         }
     }
 
@@ -574,7 +591,6 @@
     }
 
     function updateTempColor(temp) {
-        // Blue (25°C) -> Red (94°C)
         let ratio = (temp - 25) / (94 - 25);
         ratio = Math.max(0, Math.min(1, ratio));
         let hue = 240 - (ratio * 240); 
@@ -584,14 +600,13 @@
     // Grid layout calculator for exponential phase
     function recalculateTargets(arr) {
         let cols = 4;
-        if (arr.length > 16) cols = 8; // Switch to 8 columns for 32 items
+        if (arr.length > 16) cols = 8; 
         let rows = Math.ceil(arr.length / cols);
 
         let spacingX = 130;
         let spacingY = 60;
 
         let startX = canvas.width / 2 - ((cols - 1) * spacingX) / 2;
-        // Shift slightly down to avoid UI elements
         let startY = canvas.height / 2 - ((rows - 1) * spacingY) / 2 + 40;
 
         arr.forEach((ms, i) => {
@@ -607,7 +622,6 @@
      */
     function executeNextPhase() {
         if (currentPhase === 9) {
-            // Reset logic
             strands = [];
             polymerases = [];
             miniStrands = [];
@@ -623,7 +637,7 @@
 
         switch(currentPhase) {
             case 1:
-                legendEl.style.display = 'block'; // Show legend in micro view
+                legendEl.style.display = 'block'; 
                 setPhase("Preparation", 25, "Double-stranded DNA template is ready for the amplification process.");
                 strands.push(new Strand(globalStartX, globalEndX, cy - 11, COLORS.template, 1, "5'", "3'"));
                 strands.push(new Strand(globalStartX, globalEndX, cy + 11, COLORS.template, -1, "3'", "5'"));
@@ -668,7 +682,6 @@
             case 5:
                 setPhase("Cycle 2: Denaturation", 94, "Temperature rises again. The 2 newly formed double-stranded DNA molecules separate to form 4 single-stranded templates.");
                 nextBtn.innerText = "Animating...";
-                // Spread slightly less than before to ensure it doesn't overlap top description texts
                 strands[0].targetY = cy - 240; 
                 strands[2].targetY = cy - 80;  
                 strands[3].targetY = cy + 80;  
@@ -707,18 +720,17 @@
                 break;
 
             case 8:
-                legendEl.style.display = 'none'; // Hide legend in macro view
+                legendEl.style.display = 'none'; 
                 setPhase("Cycle 3", 94, "Observe the structured, semi-conservative replication doubling the target products.");
                 nextBtn.innerText = "Amplifying...";
                 nextBtn.disabled = true;
                 
                 isExponential = true;
-                cycleCount = 2; // Started with products of cycle 2
+                cycleCount = 2; 
                 cycleTimer = 0;
                 miniStrands = [];
                 showEllipsis = false;
                 
-                // Spawn initial 4 mini strands from the center of the detailed strands
                 for(let i = 4; i <= 7; i++) {
                     let cx = (strands[i].x1 + strands[i].x2) / 2;
                     let cy = strands[i].y;
@@ -735,7 +747,6 @@
         }
     }
 
-    // Button Event Listener
     nextBtn.addEventListener('click', executeNextPhase);
 
     /**
@@ -744,39 +755,32 @@
     function animate() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // UI Dynamic Temperature Update
         currentTempAnim += (targetTemp - currentTempAnim) * 0.05;
         tempTextEl.innerText = Math.round(currentTempAnim);
         updateTempColor(currentTempAnim);
 
-        // Background Annotation Layer
         drawTargetRegion(ctx);
 
-        // Wait Condition Monitoring
         if (conditionFn && conditionFn()) {
             if (!waiting) {
                 waiting = true;
-                if (onReadyFn) onReadyFn(); // Trigger button enable
+                if (onReadyFn) onReadyFn(); 
                 conditionFn = null;
                 onReadyFn = null;
             }
         }
 
-        // Entity Drawing
         strands.forEach(s => { s.update(); s.draw(ctx); });
         polymerases.forEach(p => { p.update(); p.draw(ctx); });
 
         if (isExponential) {
-            // Fade out the detailed strands
             strands.forEach(s => s.globalAlpha = Math.max(0, s.globalAlpha - 0.05));
             
-            // Check if all ministrands have reached their grid targets
             let isMoving = miniStrands.some(ms => Math.abs(ms.x - ms.targetX) > 1 || Math.abs(ms.y - ms.targetY) > 1);
             
             if (!isMoving && cycleCount < 5) {
                 cycleTimer++;
                 
-                // Properly synchronize temperature phases without blocking the logic
                 if (cycleTimer === 10) {
                     targetTemp = 94;
                     phaseTextEl.innerText = `Cycle ${cycleCount + 1}`;
@@ -788,7 +792,6 @@
                     cycleTimer = 0;
                     cycleCount++;
                     
-                    // Double the products perfectly at the end of the extending phase
                     let currentCount = miniStrands.length;
                     for(let i = 0; i < currentCount; i++) {
                         miniStrands.push(new MiniStrand(miniStrands[i].x, miniStrands[i].y));
@@ -797,9 +800,8 @@
                     recalculateTargets(miniStrands);
                 }
             } else if (!isMoving && cycleCount >= 5) {
-                // Reached 32 products (Cycle 5)
                 showEllipsis = true;
-                targetTemp = 25; // Cool down
+                targetTemp = 25; 
                 phaseTextEl.innerText = `Cycles 6-30`;
                 
                 if (nextBtn.disabled) {
@@ -813,15 +815,13 @@
                 ms.draw(ctx);
             });
 
-            // Draw ellipsis and summary text at the bottom
             if (showEllipsis) {
                 ctx.fillStyle = "#888";
                 ctx.font = "bold 60px 'Segoe UI', Roboto, sans-serif";
                 ctx.textAlign = "center";
-                // Render Ellipsis
                 ctx.fillText("...", canvas.width / 2, canvas.height - 180);
                 
-                ctx.font = "bold 22px 'Segoe UI', Roboto, sans-serif";
+                ctx.font = "bold 26px 'Segoe UI', Roboto, sans-serif";
                 ctx.fillStyle = "#666";
                 ctx.fillText("Process repeats up to 30-40 cycles ( > 1 Billion copies )", canvas.width / 2, canvas.height - 130);
             }
@@ -830,7 +830,6 @@
         requestAnimationFrame(animate);
     }
 
-    // Initialize Application
     initLayout();
     executeNextPhase(); 
     requestAnimationFrame(animate);
