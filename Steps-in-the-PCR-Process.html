@@ -815,15 +815,10 @@
                 ms.draw(ctx);
             });
 
-            if (showEllipsis) {
-                ctx.fillStyle = "#888";
-                ctx.font = "bold 60px 'Segoe UI', Roboto, sans-serif";
-                ctx.textAlign = "center";
-                ctx.fillText("...", canvas.width / 2, canvas.height - 250);
-                
+            if (showEllipsis) {              
                 ctx.font = "bold 26px 'Segoe UI', Roboto, sans-serif";
                 ctx.fillStyle = "#666";
-                ctx.fillText("Process repeats up to 30-40 cycles ( > 1 Billion copies )", canvas.width / 2, canvas.height - 210);
+                ctx.fillText("... Process repeats up to 30-40 cycles ( > 1 Billion copies )", canvas.width / 2, canvas.height - 210);
             }
         }
 
@@ -837,5 +832,6 @@
 </script>
 </body>
 </html>
+
 
 
